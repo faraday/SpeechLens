@@ -1,18 +1,5 @@
 # SpeechLens
 
-**Enhance speech locally on your Mac, faster than real time.**
-
-SpeechLens is a native macOS app and CLI that runs the fixed 30-block RE-USE
-SE-Mamba model through Swift, MLX, and specialized Metal kernels on Apple
-Silicon. On an M1 Max, measured streaming enhancement processes audio at
-2.3×–6.6× real-time speed while preserving the input sample rate and frame
-count. Audio never leaves the Mac.
-
-**2.3×–6.6× real-time enhancement · 141.6 MB peak RSS · Exact native-rate output · No Python runtime**
-
-Release-mode M1 Max measurements. Enhancement timing excludes model loading and
-file I/O; results vary by Mac and media.
-
 [![CI](https://github.com/faraday/SpeechLens/actions/workflows/ci.yml/badge.svg)](https://github.com/faraday/SpeechLens/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/faraday/SpeechLens?include_prereleases&sort=semver)](https://github.com/faraday/SpeechLens/releases/latest)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple)](https://github.com/faraday/SpeechLens/releases/latest)
@@ -20,14 +7,36 @@ file I/O; results vary by Mac and media.
 [![Swift 6.3](https://img.shields.io/badge/Swift-6.3-F05138?logo=swift&logoColor=white)](Package.swift)
 [![License: Apache-2.0](https://img.shields.io/badge/source-Apache--2.0-blue.svg)](LICENSE)
 
-[**Download the macOS app**](https://github.com/faraday/SpeechLens/releases/latest)
-· [Listen to examples](#hear-the-result)
-· [Use the CLI](#command-line)
-· [Read the documentation](docs/README.md)
-
-<p align="center">
-  <img src="docs/assets/app-demo.gif" alt="SpeechLens in action" width="460" />
-</p>
+<table>
+  <tr>
+    <td valign="top" width="58%">
+      <h3>Enhance speech locally on your Mac, faster than real time.</h3>
+      <p>
+        SpeechLens is a native macOS app and CLI that runs the fixed 30-block RE-USE
+        SE-Mamba model through Swift, MLX, and specialized Metal kernels on Apple
+        Silicon. On an M1 Max, measured streaming enhancement processes audio at
+        2.3×–6.6× real-time speed while preserving the input sample rate and frame
+        count. Audio never leaves the Mac.
+      </p>
+      <ul>
+        <li>⚡ <b>2.3×–6.6× real-time enhancement</b> on Apple Silicon</li>
+        <li>🔒 <b>100% on-device</b> — audio never leaves the Mac</li>
+        <li>🎯 <b>Exact native-rate output</b> — zero resampling or quality loss</li>
+        <li>🪶 <b>4.4 GB bounded physical footprint</b> (~142 MB host RSS) — no Python or PyTorch runtime</li>
+      </ul>
+      <p>
+        <a href="https://github.com/faraday/SpeechLens/releases/latest"><b>Download the macOS app</b></a>
+        · <a href="#hear-the-result">Listen to examples</a>
+        · <a href="#command-line">Use the CLI</a>
+        · <a href="docs/README.md">Documentation</a>
+      </p>
+      <p><sub>Release-mode M1 Max measurements. Enhancement timing excludes model loading and file I/O; results vary by Mac and media.</sub></p>
+    </td>
+    <td align="center" valign="top" width="42%">
+      <img src="docs/assets/app-demo.gif" alt="SpeechLens in action" width="310" />
+    </td>
+  </tr>
+</table>
 
 > [!IMPORTANT]
 > SpeechLens source code is Apache-2.0, but the default converted RE-USE model
