@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  non-model-tests:
+    name: Non-model tests
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Select Swift 6.3+ toolchain
+        run: Tools/select-ci-xcode.sh
+
+      - name: Prepare test MLX metallib
+        run: Tools/prepare-test-metallib.sh --configuration debug
+
+      - name: Prepare test FFmpeg helpers
+        run: Tools/bootstrap-ffmpeg.sh
+
+      - name: Run non-model tests
+        run: |
+          set -euo pipefail
+          Tools/run-swift-test-xunit.sh \
+            --output TestResults/JUnit/non-model-tests.xml \
+            -- swift test \
+              --skip-build \
+              --disable-swift-testing \
+              --filter 'ArchTests|AudioIOTests|MediaIOTests|CLITests|DiagnosticsTests|InferenceTests|ProcessingTests|TestSupportTests'
+
+      - name: Verify string catalog
+        run: Tools/verify-localizations.sh
+
+      - name: Run Xcode app tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project SpeechLens.xcodeproj \
+            -scheme SpeechLens \
+            -destination 'platform=macOS,arch=arm64' \
+            -skipPackagePluginValidation \
+            -resultBundlePath TestResults/SpeechLensAppTests.xcresult
+
+      - name: Upload non-model test report
+        if: always()
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: non-model-test-report
+          path: |
+            TestResults/JUnit/non-model-tests.xml
+            TestResults/SpeechLensAppTests.xcresult
+          if-no-files-found: ignore
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Non-model tests"
+            echo ""
+            echo "- Metallib: \`Tools/prepare-test-metallib.sh --configuration debug\`"
+            echo "- SwiftPM: \`ArchTests|AudioIOTests|MediaIOTests|CLITests|DiagnosticsTests|InferenceTests|ProcessingTests|TestSupportTests\`"
+            echo "- Xcode: \`SpeechLensAppTests\`"
+            echo "- xUnit artifact: \`non-model-test-report\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  package-smoke:
+    name: Local package smoke
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Select Swift 6.3+ toolchain
+        run: Tools/select-ci-xcode.sh
+
+      - name: Package local release artifacts
+        run: Tools/package-local.sh --configuration release
+
+      - name: Run packaged-helper media integration slice
+        env:
+          SPEECHLENS_FFMPEG: ${{ github.workspace }}/dist/local/speechlens-cli/ffmpeg
+          SPEECHLENS_FFPROBE: ${{ github.workspace }}/dist/local/speechlens-cli/ffprobe
+        run: |
+          set -euo pipefail
+          Tools/run-swift-test-xunit.sh \
+            --output TestResults/JUnit/package-smoke.xml \
+            --forbid-skips \
+            -- swift test \
+              --disable-swift-testing \
+              --filter 'MediaInspectionTests|FFmpegPipeAudioSourceTests|BundledMediaRuntimeTests|AppleAACTimelineCharacterizationTests|UnifiedCodecTransactionTests|UnifiedStreamRoutingTests'
+
+      - name: Upload package smoke test report
+        if: always()
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: package-smoke-test-report
+          path: TestResults/JUnit/package-smoke.xml
+          if-no-files-found: ignore
+
+      - name: Upload package artifacts on failure
+        if: failure()
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: package-smoke-dist
+          path: dist/local
+          if-no-files-found: ignore
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Package smoke"
+            echo ""
+            echo "- Package command: \`Tools/package-local.sh --configuration release\`"
+            echo "- Test command: \`Tools/run-swift-test-xunit.sh --output TestResults/JUnit/package-smoke.xml --forbid-skips -- swift test --disable-swift-testing --filter 'MediaInspectionTests|FFmpegPipeAudioSourceTests|BundledMediaRuntimeTests|AppleAACTimelineCharacterizationTests|UnifiedCodecTransactionTests|UnifiedStreamRoutingTests'\`"
+            echo "- xUnit artifact: \`package-smoke-test-report\`"
+            echo "- Failure artifact: \`package-smoke-dist\`"
+          } >> "$GITHUB_STEP_SUMMARY"

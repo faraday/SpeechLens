@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- SpeechLens menu-bar mark: slightly wider side openings for a clearer through-line. -->
+  <g fill="none" stroke="#000000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Lens: same overall footprint, side gaps opened by 0.20 pt on each edge of the opening. -->
+    <path d="M 2.15 9.35 A 10.22 10.22 0 0 1 21.85 9.35"/>
+    <path d="M 2.15 14.65 A 10.22 10.22 0 0 0 21.85 14.65"/>
+
+    <!-- Speech waveform / through-line -->
+    <path d="M 3 12
+      H 5.55
+      C 6.30 12 6.50 10.05 7.25 10.05
+      S 8.20 14.60 8.95 14.60
+      S 9.90 7.55 10.65 7.55
+      S 11.60 16.45 12.35 16.45
+      S 13.30 8.90 14.05 8.90
+      S 15.00 14.00 15.75 14.00
+      S 16.70 12 17.55 12
+      H 21"/>
+  </g>
+</svg>

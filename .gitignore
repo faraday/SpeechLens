@@ -1,0 +1,60 @@
+# Xcode
+/build/
+/DerivedData/
+*.hmap
+*.ipa
+*.xcresult
+*.xcuserstate
+xcuserdata/
+
+# Swift Package Manager
+/.build/
+/Packages/
+/.swiftpm/xcode/
+/.swiftpm/
+/.sourcekit-lsp/
+
+# Python
+/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environment configuration
+/.env
+/.env.*
+!/.env.example
+
+# Editor-local settings
+.vscode/
+
+# Generated test artifacts
+/TestResults/
+
+# Generated release and packaging artifacts
+/dist/
+
+# Local model artifacts
+/HF_Models/
+/Models/*.safetensors
+/Models/**/*.safetensors
+
+# Logs
+*.log
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
