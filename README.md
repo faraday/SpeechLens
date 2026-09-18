@@ -60,14 +60,42 @@ handled errors. See [Privacy and telemetry](docs/telemetry.md).
 
 ## Hear the result
 
-These browser-friendly MP3 previews use identical encoding settings on the
-before and after versions. They are compressed listening copies; enhancement
-ran at each source's native rate with the pinned model.
+Play the before-and-after samples directly below to hear SpeechLens isolate
+speech and remove ambient background noise. Enhancement ran at each source's
+native rate with the pinned model:
 
-| Recording | Before | After | Native rate |
-| --- | --- | --- | ---: |
-| CitySpeechMix urban noise | [Listen to noisy speech](docs/assets/demo/cityspeechmix-before.mp3) | [Listen to enhanced speech](docs/assets/demo/cityspeechmix-after.mp3) | 44.1 kHz |
-| Edinburgh noisy speech | [Listen to noisy speech](docs/assets/demo/edinburgh-before.mp3) | [Listen to enhanced speech](docs/assets/demo/edinburgh-after.mp3) | 48 kHz |
+<table width="100%">
+  <thead>
+    <tr>
+      <th align="left">Recording</th>
+      <th align="center" width="38%">Before</th>
+      <th align="center" width="38%">After</th>
+      <th align="right">Native rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CitySpeechMix urban noise</td>
+      <td align="center">
+        <video src="https://github.com/user-attachments/assets/a41c523f-1bba-4065-be46-078274d15c23" controls width="100%"></video>
+      </td>
+      <td align="center">
+        <video src="https://github.com/user-attachments/assets/a9764caa-9a8c-49f2-9738-98596c43d484" controls width="100%"></video>
+      </td>
+      <td align="right">44.1 kHz</td>
+    </tr>
+    <tr>
+      <td>Edinburgh noisy speech</td>
+      <td align="center">
+        <video src="https://github.com/user-attachments/assets/df43d2f0-e60f-4269-a1f1-2d64f41aa341" controls width="100%"></video>
+      </td>
+      <td align="center">
+        <video src="https://github.com/user-attachments/assets/f4d2b350-a5fc-471b-ac8c-13c8c508a2dd" controls width="100%"></video>
+      </td>
+      <td align="right">48 kHz</td>
+    </tr>
+  </tbody>
+</table>
 
 The samples are adapted from CC BY 4.0 datasets. Their exact provenance,
 generation recipe, checksums, and lossless sources are recorded in the
