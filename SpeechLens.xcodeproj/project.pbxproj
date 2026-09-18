@@ -1,0 +1,454 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000101 /* Inference in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000501 /* Inference */; };
+		100000000000000000000102 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000502 /* AudioIO */; };
+		100000000000000000000103 /* MediaIO in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000503 /* MediaIO */; };
+		100000000000000000000104 /* Processing in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000504 /* Processing */; };
+		100000000000000000000105 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000505 /* Diagnostics */; };
+		100000000000000000000106 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000506 /* Sentry */; };
+		100000000000000000000111 /* Inference in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000511 /* Inference */; };
+		100000000000000000000112 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000512 /* AudioIO */; };
+		100000000000000000000113 /* MediaIO in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000513 /* MediaIO */; };
+		100000000000000000000114 /* Processing in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000514 /* Processing */; };
+		100000000000000000000115 /* TestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000515 /* TestSupport */; };
+		100000000000000000000116 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000516 /* Diagnostics */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		100000000000000000000210 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 100000000000000000000010;
+			remoteInfo = SpeechLens;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000020 /* SpeechLens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpeechLens.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000021 /* SpeechLensAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpeechLensAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		100000000000000000000030 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Sources/App;
+			sourceTree = "<group>";
+		};
+		100000000000000000000031 /* AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Tests/AppTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		100000000000000000000120 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000101 /* Inference in Frameworks */,
+				100000000000000000000102 /* AudioIO in Frameworks */,
+				100000000000000000000103 /* MediaIO in Frameworks */,
+				100000000000000000000104 /* Processing in Frameworks */,
+				100000000000000000000105 /* Diagnostics in Frameworks */,
+				100000000000000000000106 /* Sentry in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		100000000000000000000121 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000111 /* Inference in Frameworks */,
+				100000000000000000000112 /* AudioIO in Frameworks */,
+				100000000000000000000113 /* MediaIO in Frameworks */,
+				100000000000000000000114 /* Processing in Frameworks */,
+				100000000000000000000115 /* TestSupport in Frameworks */,
+				100000000000000000000116 /* Diagnostics in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		100000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000030 /* App */,
+				100000000000000000000031 /* AppTests */,
+				100000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		100000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000020 /* SpeechLens.app */,
+				100000000000000000000021 /* SpeechLensAppTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100000000000000000000010 /* SpeechLens */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000310 /* Build configuration list for PBXNativeTarget "SpeechLens" */;
+			buildPhases = (
+				100000000000000000000130 /* Sources */,
+				100000000000000000000120 /* Frameworks */,
+				100000000000000000000140 /* Resources */,
+				100000000000000000000150 /* Embed Runtime Assets */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				100000000000000000000030 /* App */,
+			);
+			name = SpeechLens;
+			packageProductDependencies = (
+				100000000000000000000501 /* Inference */,
+				100000000000000000000502 /* AudioIO */,
+				100000000000000000000503 /* MediaIO */,
+				100000000000000000000504 /* Processing */,
+				100000000000000000000505 /* Diagnostics */,
+				100000000000000000000506 /* Sentry */,
+			);
+			productName = SpeechLens;
+			productReference = 100000000000000000000020 /* SpeechLens.app */;
+			productType = "com.apple.product-type.application";
+		};
+		100000000000000000000011 /* SpeechLensAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000311 /* Build configuration list for PBXNativeTarget "SpeechLensAppTests" */;
+			buildPhases = (
+				100000000000000000000131 /* Sources */,
+				100000000000000000000121 /* Frameworks */,
+				100000000000000000000141 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				100000000000000000000211 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				100000000000000000000031 /* AppTests */,
+			);
+			name = SpeechLensAppTests;
+			packageProductDependencies = (
+				100000000000000000000511 /* Inference */,
+				100000000000000000000512 /* AudioIO */,
+				100000000000000000000513 /* MediaIO */,
+				100000000000000000000514 /* Processing */,
+				100000000000000000000515 /* TestSupport */,
+				100000000000000000000516 /* Diagnostics */,
+			);
+			productName = SpeechLensAppTests;
+			productReference = 100000000000000000000021 /* SpeechLensAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					100000000000000000000010 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					100000000000000000000011 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 100000000000000000000010;
+					};
+				};
+			};
+			buildConfigurationList = 100000000000000000000300 /* Build configuration list for PBXProject "SpeechLens" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 100000000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				100000000000000000000400 /* XCLocalSwiftPackageReference "." */,
+				100000000000000000000401 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 100000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100000000000000000000010 /* SpeechLens */,
+				100000000000000000000011 /* SpeechLensAppTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		100000000000000000000140 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		100000000000000000000141 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		100000000000000000000150 /* Embed Runtime Assets */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Runtime Assets";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${SRCROOT}/Tools/prepare-app-runtime.sh\" --app-bundle \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\" --sign-identity \"${EXPANDED_CODE_SIGN_IDENTITY:-}\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		100000000000000000000130 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		100000000000000000000131 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		100000000000000000000211 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 100000000000000000000010 /* SpeechLens */;
+			targetProxy = 100000000000000000000210 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		100000000000000000000320 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		100000000000000000000321 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		100000000000000000000330 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = README.md;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/AppInfo.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.0.0-dev;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.speechlens.SpeechLens;
+				PRODUCT_MODULE_NAME = App;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SENTRY_DSN = "";
+				SENTRY_ENVIRONMENT = development;
+				SPEECHLENS_BUILD_CONFIGURATION = debug;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		100000000000000000000331 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				EXCLUDED_SOURCE_FILE_NAMES = README.md;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/AppInfo.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.0.0-dev;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.speechlens.SpeechLens;
+				PRODUCT_MODULE_NAME = App;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SENTRY_DSN = "";
+				SENTRY_ENVIRONMENT = production;
+				SPEECHLENS_BUILD_CONFIGURATION = release;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		100000000000000000000340 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.speechlens.SpeechLensTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_PACKAGE_NAME = speechlens;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpeechLens.app/Contents/MacOS/SpeechLens";
+			};
+			name = Debug;
+		};
+		100000000000000000000341 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.speechlens.SpeechLensTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_PACKAGE_NAME = speechlens;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpeechLens.app/Contents/MacOS/SpeechLens";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		100000000000000000000300 /* Build configuration list for PBXProject "SpeechLens" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000320 /* Debug */,
+				100000000000000000000321 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000310 /* Build configuration list for PBXNativeTarget "SpeechLens" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000330 /* Debug */,
+				100000000000000000000331 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000311 /* Build configuration list for PBXNativeTarget "SpeechLensAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000340 /* Debug */,
+				100000000000000000000341 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		100000000000000000000400 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ".";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		100000000000000000000401 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = exactVersion;
+				version = 9.24.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		100000000000000000000501 /* Inference */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = Inference; };
+		100000000000000000000502 /* AudioIO */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = AudioIO; };
+		100000000000000000000503 /* MediaIO */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = MediaIO; };
+		100000000000000000000504 /* Processing */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = Processing; };
+		100000000000000000000505 /* Diagnostics */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = Diagnostics; };
+		100000000000000000000506 /* Sentry */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000401 /* XCRemoteSwiftPackageReference "sentry-cocoa" */; productName = Sentry; };
+		100000000000000000000511 /* Inference */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = Inference; };
+		100000000000000000000512 /* AudioIO */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = AudioIO; };
+		100000000000000000000513 /* MediaIO */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = MediaIO; };
+		100000000000000000000514 /* Processing */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = Processing; };
+		100000000000000000000515 /* TestSupport */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = TestSupport; };
+		100000000000000000000516 /* Diagnostics */ = {isa = XCSwiftPackageProductDependency; package = 100000000000000000000400 /* XCLocalSwiftPackageReference "." */; productName = Diagnostics; };
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 100000000000000000000001 /* Project object */;
+}

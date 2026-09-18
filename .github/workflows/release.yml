@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without leading v, for example 0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  model-tests:
+    name: Model correctness gate
+    uses: ./.github/workflows/model-tests.yml
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+  release:
+    name: Build signed release
+    needs: model-tests
+    runs-on: macos-26
+    environment: release
+    steps:
+      - name: Checkout
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Select Swift 6.3+ toolchain
+        run: Tools/select-ci-xcode.sh
+
+      - name: Install pinned Sentry CLI
+        run: |
+          set -euo pipefail
+          npm install --global @sentry/cli@3.6.2
+          [[ "$(sentry-cli --version)" == "sentry-cli 3.6.2" ]]
+
+      - name: Resolve release version
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            tag="${GITHUB_REF_NAME}"
+            version="${tag#v}"
+          else
+            version="${{ inputs.version }}"
+            tag="v${version}"
+          fi
+          echo "SPEECHLENS_RELEASE_VERSION=${version}" >> "$GITHUB_ENV"
+          echo "SPEECHLENS_RELEASE_TAG=${tag}" >> "$GITHUB_ENV"
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          keychain="${RUNNER_TEMP}/speechlens-signing.keychain-db"
+          certificate="${RUNNER_TEMP}/developer-id.p12"
+
+          echo "$APPLE_DEVELOPER_ID_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" \
+            -k "$keychain" \
+            -P "$APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$APPLE_KEYCHAIN_PASSWORD" "$keychain"
+
+          identity_sha="$(
+            security find-identity -v -p codesigning "$keychain" \
+              | awk -v team="$APPLE_TEAM_ID" '
+                  index($0, "Developer ID Application:") &&
+                  index($0, "(" team ")") && !found {
+                    print $2
+                    found = 1
+                  }
+                '
+          )"
+          if [[ ! "$identity_sha" =~ ^[0-9A-Fa-f]{40}$ ]]; then
+            echo "No valid Developer ID Application identity for team ${APPLE_TEAM_ID} was imported." >&2
+            security find-identity -v -p codesigning "$keychain" >&2
+            exit 1
+          fi
+          echo "DEVELOPER_ID_APPLICATION=${identity_sha}" >> "$GITHUB_ENV"
+          echo "CODE_SIGN_KEYCHAIN=${keychain}" >> "$GITHUB_ENV"
+
+      - name: Build signed and notarized artifacts
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: Tools/release.sh --version "$SPEECHLENS_RELEASE_VERSION"
+
+      - name: Write draft release notes
+        run: |
+          set -euo pipefail
+          {
+            echo "SpeechLens ${SPEECHLENS_RELEASE_VERSION}"
+            echo ""
+            echo "Assets:"
+            echo "- SpeechLens-${SPEECHLENS_RELEASE_VERSION}.dmg: signed and notarized macOS app."
+            echo "- speechlens-cli-${SPEECHLENS_RELEASE_VERSION}.zip: signed and notarized CLI package with MLX metallib and FFmpeg/FFprobe AVI/FLAC helpers."
+            echo "- checksums.txt: SHA-256 checksums for release assets."
+            echo ""
+            echo "Model weights are not bundled. Download the model in the app or provide converted MLX weights to the CLI."
+          } > "${RUNNER_TEMP}/release-notes.md"
+
+      - name: Create or update draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_dir="dist/release/${SPEECHLENS_RELEASE_VERSION}"
+          assets=(
+            "${release_dir}/SpeechLens-${SPEECHLENS_RELEASE_VERSION}.dmg"
+            "${release_dir}/speechlens-cli-${SPEECHLENS_RELEASE_VERSION}.zip"
+            "${release_dir}/checksums.txt"
+          )
+
+          if gh release view "$SPEECHLENS_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$SPEECHLENS_RELEASE_TAG" \
+              --draft=true \
+              --title "SpeechLens ${SPEECHLENS_RELEASE_VERSION}" \
+              --notes-file "${RUNNER_TEMP}/release-notes.md"
+            gh release upload "$SPEECHLENS_RELEASE_TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$SPEECHLENS_RELEASE_TAG" "${assets[@]}" \
+              --draft \
+              --title "SpeechLens ${SPEECHLENS_RELEASE_VERSION}" \
+              --notes-file "${RUNNER_TEMP}/release-notes.md"
+          fi
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Release"
+            echo ""
+            echo "- Version: \`${SPEECHLENS_RELEASE_VERSION:-unknown}\`"
+            echo "- Tag: \`${SPEECHLENS_RELEASE_TAG:-unknown}\`"
+            echo "- Assets: \`SpeechLens-${SPEECHLENS_RELEASE_VERSION:-unknown}.dmg\`, \`speechlens-cli-${SPEECHLENS_RELEASE_VERSION:-unknown}.zip\`, \`checksums.txt\`"
+            echo "- GitHub release mode: draft"
+          } >> "$GITHUB_STEP_SUMMARY"

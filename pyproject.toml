@@ -1,0 +1,16 @@
+[project]
+name = "speechlens-reference-tools"
+version = "0.1.0"
+description = "Offline PyTorch parity oracle for the SpeechLens MLX implementation"
+requires-python = "==3.10.1"
+dependencies = [
+    "einops==0.8.1",
+    "numpy==1.26.4",
+    "opt-einsum==3.3.0",
+    "packaging==25.0",
+    "safetensors==0.4.5",
+    "torch==2.9.1",
+]
+
+[tool.uv]
+package = false

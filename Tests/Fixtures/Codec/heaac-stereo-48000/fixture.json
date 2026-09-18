@@ -1,0 +1,13 @@
+{
+  "license": "CC0-1.0",
+  "source": "Project-authored synthetic stereo signal; no third-party audio or video.",
+  "generator": "Tools/generate-heaac-fixture.swift",
+  "encoder": "FFmpeg 8.1.2 with libfdk_aac 2.0.3",
+  "container": "mov,mp4,m4a,3gp,3g2,mj2",
+  "codec": "aac",
+  "profile": "HE-AAC",
+  "sample_rate": 48000,
+  "channels": 2,
+  "duration_seconds": 3.0,
+  "sha256": "d3db8f50185792e353ebc506bc3d5d86d224872219d8d505b06513c6b622ac6c"
+}

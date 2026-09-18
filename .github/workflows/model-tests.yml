@@ -1,0 +1,196 @@
+name: Model Tests
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      HF_TOKEN:
+        # Optional: need no auth but helps HF rate limits.
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MODEL_REVISION: 07bc44c152c5f9f665d2474cf1f5b69edc7cae14
+  MODEL_SHA256: d1158502eaf39d0b11d097177160ce3804454653c5d14d17921b6c274ca53237
+  MODEL_REPO: faraday/re-use-mlx
+  SPEECHLENS_AUDIO_QUALITY_CHUNK_SECONDS: "5.0"
+
+jobs:
+  model-correctness:
+    name: Model correctness
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Select Swift 6.3+ toolchain
+        run: Tools/select-ci-xcode.sh
+
+      - name: Download pinned model artifact
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          model_dir="${RUNNER_TEMP}/speechlens-model"
+          mkdir -p "$model_dir"
+
+          base_url="https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}"
+          curl_args=(--fail --location --retry 3)
+          if [[ -n "${HF_TOKEN:-}" ]]; then
+            curl_args+=(--header "Authorization: Bearer ${HF_TOKEN}")
+          fi
+
+          curl "${curl_args[@]}" \
+            --output "${model_dir}/conversion-manifest.json" \
+            "${base_url}/conversion-manifest.json"
+          curl "${curl_args[@]}" \
+            --output "${model_dir}/model_mlx.safetensors" \
+            "${base_url}/model_mlx.safetensors"
+
+          actual_sha="$(shasum -a 256 "${model_dir}/model_mlx.safetensors" | awk '{print $1}')"
+          if [[ "$actual_sha" != "$MODEL_SHA256" ]]; then
+            echo "Converted model checksum mismatch: expected $MODEL_SHA256, got $actual_sha" >&2
+            exit 1
+          fi
+
+          manifest_sha="$(python3 - "${model_dir}/conversion-manifest.json" <<'PY'
+          import json
+          import sys
+
+          path = sys.argv[1]
+          with open(path, "r", encoding="utf-8") as handle:
+              manifest = json.load(handle)
+
+          def sha_value(value):
+              if isinstance(value, str) and len(value) >= 32:
+                  return value
+              if isinstance(value, dict):
+                  for key in ("sha256", "checksum", "model_sha256"):
+                      candidate = value.get(key)
+                      if isinstance(candidate, str) and len(candidate) >= 32:
+                          return candidate
+              return None
+
+          for key in ("model_sha256", "sha256", "checksum"):
+              candidate = manifest.get(key)
+              if isinstance(candidate, str) and len(candidate) >= 32:
+                  print(candidate)
+                  raise SystemExit(0)
+
+          model_entry = manifest.get("model_mlx.safetensors")
+          candidate = sha_value(model_entry)
+          if candidate:
+              print(candidate)
+              raise SystemExit(0)
+
+          files = manifest.get("files")
+          if isinstance(files, list):
+              for item in files:
+                  if not isinstance(item, dict):
+                      continue
+                  name = str(item.get("name") or item.get("path") or item.get("filename") or "")
+                  if "model_mlx.safetensors" in name:
+                      candidate = sha_value(item)
+                      if candidate:
+                          print(candidate)
+                          raise SystemExit(0)
+          elif isinstance(files, dict):
+              candidate = sha_value(files.get("model_mlx.safetensors"))
+              if candidate:
+                  print(candidate)
+                  raise SystemExit(0)
+
+          raise SystemExit("manifest does not contain a recognized model_mlx.safetensors checksum")
+          PY
+          )"
+          if [[ "$manifest_sha" != "$MODEL_SHA256" ]]; then
+            echo "Conversion manifest checksum mismatch: expected $MODEL_SHA256, got $manifest_sha" >&2
+            exit 1
+          fi
+
+          echo "SPEECHLENS_TEST_WEIGHTS=${model_dir}/model_mlx.safetensors" >> "$GITHUB_ENV"
+
+      - name: Prepare test MLX metallib
+        run: Tools/prepare-test-metallib.sh --configuration release
+
+      - name: Prepare test FFmpeg helpers
+        run: Tools/bootstrap-ffmpeg.sh
+
+      - name: Run model correctness tests
+        run: |
+          set -euo pipefail
+          Tools/run-swift-test-xunit.sh \
+            --output TestResults/JUnit/model-tests.xml \
+            --forbid-skips \
+            -- swift test \
+              -c release \
+              --skip-build \
+              --disable-swift-testing \
+              --filter 'WeightParityTests|AudioQualityTests|SampleRateIdentityTests|MLXRuntimeTests'
+
+      - name: Package release CLI for performance gates
+        run: Tools/package-local.sh --configuration release
+
+      - name: Run performance and RSS gates
+        run: |
+          set -euo pipefail
+          Tools/run-swift-test-xunit.sh \
+            --output TestResults/JUnit/performance-tests.xml \
+            --forbid-skips \
+            -- swift test \
+              -c release \
+              --skip-build \
+              --disable-swift-testing \
+              --filter PerformanceTests
+
+      - name: Upload model test report
+        if: always()
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: model-test-report
+          path: TestResults/JUnit/model-tests.xml
+          if-no-files-found: ignore
+
+      - name: Upload performance test report
+        if: always()
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: performance-test-report
+          path: TestResults/JUnit/performance-tests.xml
+          if-no-files-found: ignore
+
+      - name: Upload audio quality outputs on failure
+        if: failure()
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: audio-quality-results
+          path: TestResults/AudioQuality
+          if-no-files-found: ignore
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Model correctness"
+            echo ""
+            echo "- Model revision: \`${MODEL_REVISION}\`"
+            echo "- Expected SHA-256: \`${MODEL_SHA256}\`"
+            echo "- Audio quality chunk seconds: \`${SPEECHLENS_AUDIO_QUALITY_CHUNK_SECONDS}\`"
+            echo "- Model command: \`Tools/run-swift-test-xunit.sh --output TestResults/JUnit/model-tests.xml --forbid-skips -- swift test -c release --skip-build --disable-swift-testing --filter 'WeightParityTests|AudioQualityTests|SampleRateIdentityTests|MLXRuntimeTests'\`"
+            echo "- Performance command: \`Tools/run-swift-test-xunit.sh --output TestResults/JUnit/performance-tests.xml --forbid-skips -- swift test -c release --skip-build --disable-swift-testing --filter PerformanceTests\`"
+            echo "- xUnit artifact: \`model-test-report\`"
+            echo "- Performance xUnit artifact: \`performance-test-report\`"
+            echo "- Failure artifact: \`audio-quality-results\`"
+          } >> "$GITHUB_STEP_SUMMARY"
