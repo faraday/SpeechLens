@@ -8,6 +8,7 @@ assets are licensed under the Apache License 2.0 in [`LICENSE`](LICENSE).
 | `Assets/AppIcon/SpeechLens.png`, `Sources/App/Assets.xcassets/AppIcon.appiconset/` | Copyright 2026 Çağatay Çallı | Apache-2.0 | Project-authored app artwork. |
 | `Assets/MenuBarIcon/MenuBarIcon.svg`, `Sources/App/Assets.xcassets/MenuBarIcon.imageset/MenuBarIcon.pdf` | Copyright 2026 Çağatay Çallı | Apache-2.0 | Project-authored menu-bar template mark (gapped lens + through-signal). |
 | `docs/assets/cache-tradeoff.png` | Copyright 2026 Çağatay Çallı | Apache-2.0 | Project-authored benchmark visualization plot (buffer cache policy sweep). |
+| `docs/assets/app-demo.gif`, `docs/assets/screenshot-*.png` | Copyright 2026 Çağatay Çallı | Apache-2.0 | Project-authored application walkthrough animation and interface screenshots. |
 | `Tests/Fixtures/Synthetic/*.wav` | Copyright 2026 Çağatay Çallı | Apache-2.0 | Project-authored generated test signals. |
 | `Tests/Fixtures/Codec/heaac-stereo-48000/` | SpeechLens contributors | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Project-authored synthetic HE-AAC fixture, manifest, and license; generated once with the documented external `libfdk_aac` toolchain and committed for deterministic CI. |
 | `Tests/Fixtures/Real/16000/urgent_2024_fileid_26119/input.wav`, `expected.wav` | URGENT 2024 contributors | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) | `expected.wav` is an adaptation of `input.wav` produced through RE-USE inference. |

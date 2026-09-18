@@ -25,6 +25,10 @@ file I/O; results vary by Mac and media.
 · [Use the CLI](#command-line)
 · [Read the documentation](docs/README.md)
 
+<p align="center">
+  <img src="docs/assets/app-demo.gif" alt="SpeechLens in action" width="460" />
+</p>
+
 > [!IMPORTANT]
 > SpeechLens source code is Apache-2.0, but the default converted RE-USE model
 > weights are separately licensed for
@@ -87,6 +91,11 @@ SpeechLens requires an Apple Silicon Mac running macOS 14 or newer.
 3. Launch SpeechLens, review the model terms, and choose **Agree & Download Model**.
 4. Drop an audio or video file onto the menu-bar window and choose **Enhance Speech**.
 5. Compare the original and enhanced previews, then reveal the new file in Finder.
+
+| 1. Drop media | 2. Enhance on-device | 3. Compare & reveal |
+| :---: | :---: | :---: |
+| <img src="docs/assets/screenshot-main.png" alt="Drop audio or video" width="260" /> | <img src="docs/assets/screenshot-processing.png" alt="Enhancing speech on-device" width="260" /> | <img src="docs/assets/screenshot-completed.png" alt="Waveform preview and comparison" width="260" /> |
+| Drag any audio/video file or click **Choose Media** | 2.3×–6.6× real-time MLX streaming on Metal | Compare original vs enhanced waveforms |
 
 The app downloads and verifies the pinned model automatically. No Xcode, Python,
 manual weight path, or cloud audio service is required.
