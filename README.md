@@ -39,8 +39,8 @@
 </table>
 
 > [!IMPORTANT]
-> SpeechLens source code is Apache-2.0, but the default converted RE-USE model
-> weights are separately licensed for
+> SpeechLens source code is Apache-2.0, but the default [converted RE-USE model
+> weights](https://huggingface.co/faraday/re-use-mlx) are separately licensed for
 > **non-commercial research and educational use only** under the NVIDIA One-Way
 > Noncommercial License (NSCLv1). Review the
 > [model terms](docs/model-artifacts.md#licensing) before downloading or using them.
