@@ -1,16 +1,18 @@
-# SpeechLens
+<h1 align="center"><img src="docs/assets/speechlens-logo.png" alt="SpeechLens app icon" width="112" /><br />SpeechLens</h1>
+<p align="center"><strong>Enhance speech locally on your Mac, faster than real time.</strong></p>
 
-[![CI](https://github.com/faraday/SpeechLens/actions/workflows/ci.yml/badge.svg)](https://github.com/faraday/SpeechLens/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/faraday/SpeechLens?include_prereleases&sort=semver)](https://github.com/faraday/SpeechLens/releases/latest)
-[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple)](https://github.com/faraday/SpeechLens/releases/latest)
-[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-required-000000?logo=apple)](docs/architecture.md)
-[![Swift 6.3](https://img.shields.io/badge/Swift-6.3-F05138?logo=swift&logoColor=white)](Package.swift)
-[![License: Apache-2.0](https://img.shields.io/badge/source-Apache--2.0-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/faraday/SpeechLens/actions/workflows/ci.yml"><img src="https://github.com/faraday/SpeechLens/actions/workflows/ci.yml/badge.svg" alt="CI passing" /></a>
+  <a href="https://github.com/faraday/SpeechLens/releases/latest"><img src="https://img.shields.io/github/v/release/faraday/SpeechLens?include_prereleases&sort=semver" alt="Latest release" /></a>
+  <a href="https://github.com/faraday/SpeechLens/releases/latest"><img src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple" alt="macOS 14+" /></a>
+  <a href="docs/architecture.md"><img src="https://img.shields.io/badge/Apple%20Silicon-required-000000?logo=apple" alt="Apple Silicon required" /></a>
+  <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.3-F05138?logo=swift&logoColor=white" alt="Swift 6.3" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/source-Apache--2.0-blue.svg" alt="Source license Apache-2.0" /></a>
+</p>
 
 <table>
   <tr>
     <td valign="top" width="58%">
-      <h3>Enhance speech locally on your Mac, faster than real time.</h3>
       <p>
         SpeechLens is a native macOS app and CLI that runs the fixed 30-block RE-USE
         SE-Mamba model through Swift, MLX, and specialized Metal kernels on Apple
