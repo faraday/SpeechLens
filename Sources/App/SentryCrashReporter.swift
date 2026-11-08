@@ -36,12 +36,10 @@ final class SentryCrashReporter: AppTelemetryReporting {
         let transport = SentryConsentTransport(networkSession: makeURLSession())
         activeTransport = transport
         let transportSession = transport.sdkSession
-        let cachePath = SentryCacheGeneration.path(in: configuration.cacheDirectoryURL)
         SentrySDK.start { options in
             Self.configure(
                 options,
                 configuration: configuration,
-                cachePath: cachePath,
                 consentGate: gate,
                 urlSession: transportSession,
                 capabilities: capabilities,
@@ -141,7 +139,7 @@ final class SentryCrashReporter: AppTelemetryReporting {
         transaction.finish(status: .ok)
     }
 
-    func stopAndPurge(cacheDirectoryURL: URL) {
+    func stop() {
         consentGate.setCapabilities([])
         // Close the network route before Sentry's asynchronous shutdown flush.
         // The SDK-facing session can still create tasks, which fail locally.
@@ -155,13 +153,11 @@ final class SentryCrashReporter: AppTelemetryReporting {
             SentrySDK.close()
             isStarted = false
         }
-        try? FileManager.default.removeItem(at: cacheDirectoryURL)
     }
 
     nonisolated private static func configure(
         _ options: Options,
         configuration: CrashReportingConfiguration,
-        cachePath: String,
         consentGate: TelemetryConsentGate,
         urlSession: URLSession?,
         capabilities: TelemetryCapabilities,
@@ -171,7 +167,7 @@ final class SentryCrashReporter: AppTelemetryReporting {
         options.environment = configuration.environment
         options.releaseName = configuration.releaseName
         options.dist = configuration.distribution
-        options.cacheDirectoryPath = cachePath
+        options.cacheDirectoryPath = configuration.cacheDirectoryURL.path
         options.urlSession = urlSession
         options.maxCacheItems = 5
         options.shutdownTimeInterval = 0
@@ -488,20 +484,20 @@ enum SentryCacheGeneration {
     private static let markerName = "active-client"
     private static let directoryPrefix = "client-"
 
-    static func path(in modeDirectory: URL) -> String {
+    static func directory(in modeDirectory: URL, consentEpoch: UUID? = nil) -> URL {
         let files = FileManager.default
         let marker = modeDirectory.appendingPathComponent(markerName)
-        let savedID = try? String(contentsOf: marker, encoding: .utf8)
+        let savedID = consentEpoch == nil ? try? String(contentsOf: marker, encoding: .utf8) : nil
         let activeID = savedID.flatMap(UUID.init(uuidString:))
-        let id = activeID ?? UUID()
-        let activeDirectory = modeDirectory.appendingPathComponent(directoryPrefix + id.uuidString)
+        let id = consentEpoch ?? activeID ?? UUID()
+        let activeDirectory = modeDirectory.appendingPathComponent(directoryPrefix + id.uuidString, isDirectory: true)
         let contents = (try? files.contentsOfDirectory(
             at: modeDirectory,
             includingPropertiesForKeys: nil
         )) ?? []
+        try? files.createDirectory(at: activeDirectory, withIntermediateDirectories: true)
 
-        if activeID == nil {
-            try? files.createDirectory(at: activeDirectory, withIntermediateDirectories: true)
+        if consentEpoch == nil, activeID == nil {
             // Preserve the existing cache when upgrading from a mode directory
             // that held SDK files directly. Retired clients only use UUID paths.
             for item in contents where item.lastPathComponent != markerName
@@ -520,6 +516,6 @@ enum SentryCacheGeneration {
             && item.lastPathComponent != activeDirectory.lastPathComponent {
             try? files.removeItem(at: item)
         }
-        return activeDirectory.path
+        return activeDirectory
     }
 }

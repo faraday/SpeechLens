@@ -88,6 +88,7 @@ final class EnhancementPerformanceReportingTests: XCTestCase {
             reporter: backend
         )
         telemetry.start(initialReport: nil)
+        await telemetry.waitForConsentTransition()
         let context = try makeWorkflowContext(
             performanceReporter: telemetry,
             performanceEnvironment: testEnvironment,
@@ -561,7 +562,7 @@ private final class RecordingTelemetryBackend: AppTelemetryReporting {
     }
     func submit(_ record: DailyActivityRecord) {}
 
-    func stopAndPurge(cacheDirectoryURL: URL) {
+    func stop() {
         stopCount += 1
     }
 }

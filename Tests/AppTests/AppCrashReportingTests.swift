@@ -7,7 +7,7 @@ import XCTest
 
 @MainActor
 final class AppCrashReportingTests: XCTestCase {
-    func testAllConsentCombinationsSelectExpectedMode() {
+    func testAllConsentCombinationsSelectExpectedMode() async {
         for crashEnabled in [false, true] {
             for basicEnabled in [false, true] {
                 for performanceEnabled in [false, true] {
@@ -35,6 +35,7 @@ final class AppCrashReportingTests: XCTestCase {
                     )
 
                     coordinator.start(initialReport: nil)
+                    await coordinator.waitForConsentTransition()
 
                     var expected: TelemetryCapabilities = []
                     if crashEnabled { expected.insert(.crash) }
@@ -49,31 +50,34 @@ final class AppCrashReportingTests: XCTestCase {
                         )
                     }
                     coordinator.stop()
+                    await coordinator.waitForConsentTransition()
                 }
             }
         }
     }
 
-    func testOnboardingAcceptanceIsRequiredBeforeDefaultOnConsentStartsReporter() {
+    func testOnboardingAcceptanceIsRequiredBeforeDefaultOnConsentStartsReporter() async {
         let defaults = makeDefaults()
         AppPrivacyPreference.migrateIfNeeded(in: defaults)
         let reporter = RecordingCrashReporter()
         let coordinator = makeCoordinator(defaults: defaults, reporter: reporter)
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertTrue(defaults.bool(forKey: AppPrivacyPreference.crashReportingKey))
         XCTAssertTrue(AppOnboardingPreference.isRequired(in: defaults))
         XCTAssertTrue(reporter.starts.isEmpty)
-        XCTAssertEqual(reporter.stopCount, 1)
+        XCTAssertEqual(reporter.stopCount, 0)
 
         acceptOnboarding(reliability: true, defaults: defaults)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertEqual(reporter.starts.count, 1)
     }
 
-    func testAcceptedCrashConsentIsIndependentFromBasicDiagnostics() {
+    func testAcceptedCrashConsentIsIndependentFromBasicDiagnostics() async {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         defaults.set(false, forKey: AppPrivacyPreference.basicDiagnosticsKey)
@@ -81,11 +85,12 @@ final class AppCrashReportingTests: XCTestCase {
         let coordinator = makeCoordinator(defaults: defaults, reporter: reporter)
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertEqual(reporter.starts.count, 1)
     }
 
-    func testLiveRevocationAndReenableDoNotRestoreTerminalOperationContext() throws {
+    func testLiveRevocationAndReenableDoNotRestoreTerminalOperationContext() async throws {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         defaults.set(false, forKey: AppPrivacyPreference.basicDiagnosticsKey)
@@ -99,29 +104,58 @@ final class AppCrashReportingTests: XCTestCase {
         let reporter = RecordingCrashReporter()
         let coordinator = makeCoordinator(defaults: defaults, reporter: reporter)
         coordinator.start(initialReport: recorder.latestReport())
+        await coordinator.waitForConsentTransition()
 
         XCTAssertNotNil(reporter.starts.last?.operation)
+        let retiredCache = try XCTUnwrap(reporter.starts.last?.configuration.cacheDirectoryURL)
         recorder.cancelCurrentOperation()
         coordinator.update(report: recorder.latestReport())
         XCTAssertNil(reporter.updates.last!)
 
         defaults.set(false, forKey: AppPrivacyPreference.crashReportingKey)
         notify(defaults)
+        XCTAssertEqual(reporter.stopCount, 1)
         defaults.set(true, forKey: AppPrivacyPreference.crashReportingKey)
         notify(defaults)
+        XCTAssertEqual(reporter.starts.count, 1)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertEqual(reporter.stopCount, 1)
         XCTAssertEqual(reporter.starts.count, 2)
         XCTAssertNil(reporter.starts.last?.operation)
+        XCTAssertNotEqual(reporter.starts.last?.configuration.cacheDirectoryURL, retiredCache)
     }
 
-    func testIdleStartAlwaysCarriesSanitizedEnvironmentContext() {
+    func testReliabilityToggleSkipsIntermediateCapabilityMode() async {
+        let defaults = makeDefaults()
+        acceptOnboarding(reliability: false, defaults: defaults)
+        defaults.set(true, forKey: AppPrivacyPreference.enhancementPerformanceKey)
+        let reporter = RecordingCrashReporter()
+        let coordinator = makeCoordinator(defaults: defaults, reporter: reporter)
+        coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
+
+        defaults.set(true, forKey: AppPrivacyPreference.crashReportingKey)
+        notify(defaults)
+        defaults.set(true, forKey: AppPrivacyPreference.basicDiagnosticsKey)
+        notify(defaults)
+
+        XCTAssertEqual(reporter.stopCount, 1)
+        XCTAssertEqual(reporter.starts.map(\.capabilities), [.performance])
+        await coordinator.waitForConsentTransition()
+        XCTAssertEqual(reporter.starts.map(\.capabilities), [
+            .performance, [.crash, .basicDiagnostics, .performance],
+        ])
+    }
+
+    func testIdleStartAlwaysCarriesSanitizedEnvironmentContext() async {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         let reporter = RecordingCrashReporter()
         let coordinator = makeCoordinator(defaults: defaults, reporter: reporter)
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
 
         let environment = reporter.starts.last?.environment.sentryValues
         XCTAssertEqual(environment?["hardware_model"] as? String, "Mac14,5")
@@ -129,32 +163,36 @@ final class AppCrashReportingTests: XCTestCase {
         XCTAssertNil(reporter.starts.last?.operation)
     }
 
-    func testConsentEpochUserIDPersistsAcrossModeChangeAndRotatesAfterFullRevocation() {
+    func testConsentEpochUserIDPersistsAcrossModeChangeAndRotatesAfterFullRevocation() async {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         let reporter = RecordingCrashReporter()
         let coordinator = makeCoordinator(defaults: defaults, reporter: reporter)
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
         let firstID = reporter.starts.last?.userID
 
         defaults.set(true, forKey: AppPrivacyPreference.enhancementPerformanceKey)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
         XCTAssertEqual(reporter.starts.last?.userID, firstID)
 
         defaults.set(false, forKey: AppPrivacyPreference.crashReportingKey)
         defaults.set(false, forKey: AppPrivacyPreference.basicDiagnosticsKey)
         defaults.set(false, forKey: AppPrivacyPreference.enhancementPerformanceKey)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
         XCTAssertNil(defaults.string(forKey: "telemetry.consentEpochUserID"))
 
         defaults.set(true, forKey: AppPrivacyPreference.crashReportingKey)
         defaults.set(true, forKey: AppPrivacyPreference.basicDiagnosticsKey)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
         XCTAssertNotEqual(reporter.starts.last?.userID, firstID)
     }
 
-    func testDailyActivityEmitsOncePerUTCDay() {
+    func testDailyActivityEmitsOncePerUTCDay() async {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         defaults.set(false, forKey: AppPrivacyPreference.crashReportingKey)
@@ -169,6 +207,7 @@ final class AppCrashReportingTests: XCTestCase {
         )
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
         coordinator.recordDailyActivityIfNeeded()
         XCTAssertEqual(reporter.activities.count, 1)
 
@@ -200,21 +239,23 @@ final class AppCrashReportingTests: XCTestCase {
         )
     }
 
-    func testMalformedOrMissingConfigurationNeverStartsReporter() {
+    func testMalformedOrMissingConfigurationNeverStartsReporter() async throws {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         let reporter = RecordingCrashReporter()
         let coordinator = AppTelemetryCoordinator(
             defaults: defaults,
             configuration: nil,
+            cacheDirectoryURL: try makeTemporaryTestDirectory(prefix: "SentryNoConfiguration"),
             environment: testEnvironment,
             reporter: reporter
         )
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertTrue(reporter.starts.isEmpty)
-        XCTAssertEqual(reporter.stopCount, 1)
+        XCTAssertEqual(reporter.stopCount, 0)
     }
 
     func testDSNValidationAcceptsOnlyFrankfurtIngestProjects() {
@@ -252,7 +293,7 @@ final class AppCrashReportingTests: XCTestCase {
         )
     }
 
-    func testRevocationPurgesDedicatedLocalCache() throws {
+    func testRevocationPurgesDedicatedLocalCache() async throws {
         let defaults = makeDefaults()
         AppPrivacyPreference.migrateIfNeeded(in: defaults)
         let root = try makeTemporaryTestDirectory(prefix: "SentryRevocation")
@@ -285,27 +326,37 @@ final class AppCrashReportingTests: XCTestCase {
         )
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
         XCTAssertFalse(FileManager.default.fileExists(atPath: oldEnvelope.path))
         XCTAssertEqual(NetworkSpyURLProtocol.requestCount, 0)
 
         acceptOnboarding(reliability: true, defaults: defaults)
         defaults.set(false, forKey: AppPrivacyPreference.basicDiagnosticsKey)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
         try FileManager.default.createDirectory(
             at: cache,
             withIntermediateDirectories: true
         )
         try Data("old".utf8).write(to: oldEnvelope)
-        defaults.set(false, forKey: AppPrivacyPreference.crashReportingKey)
-        notify(defaults)
+        // Give the SDK's crash-cache worker time to enter its polling wait.
+        try await Task.sleep(for: .milliseconds(50))
+        let shutdown = ContinuousClock().measure {
+            defaults.set(false, forKey: AppPrivacyPreference.crashReportingKey)
+            notify(defaults)
+        }
+        XCTAssertLessThan(shutdown, .milliseconds(750))
+        await coordinator.waitForConsentTransition()
         XCTAssertFalse(FileManager.default.fileExists(atPath: oldEnvelope.path))
         defaults.set(true, forKey: AppPrivacyPreference.crashReportingKey)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: oldEnvelope.path))
 
         defaults.set(false, forKey: AppPrivacyPreference.crashReportingKey)
         notify(defaults)
+        await coordinator.waitForConsentTransition()
     }
 
     func testRetiredTransportRejectsLateTasksAfterReenable() async throws {
@@ -345,27 +396,26 @@ final class AppCrashReportingTests: XCTestCase {
         let legacyEnvelope = mode.appendingPathComponent("existing-envelope")
         try Data("pending".utf8).write(to: legacyEnvelope)
 
-        let retiredPath = SentryCacheGeneration.path(in: mode)
-        let retired = URL(fileURLWithPath: retiredPath, isDirectory: true)
+        let retired = SentryCacheGeneration.directory(in: mode)
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: retired.appendingPathComponent(legacyEnvelope.lastPathComponent).path
         ))
-        XCTAssertEqual(SentryCacheGeneration.path(in: mode), retiredPath)
+        XCTAssertEqual(SentryCacheGeneration.directory(in: mode), retired)
 
-        SentryCrashReporter().stopAndPurge(cacheDirectoryURL: mode)
+        try FileManager.default.removeItem(at: mode)
         XCTAssertFalse(FileManager.default.fileExists(atPath: mode.path))
         try FileManager.default.createDirectory(at: retired, withIntermediateDirectories: true)
         let lateEnvelope = retired.appendingPathComponent("late-envelope")
         try Data("retired".utf8).write(to: lateEnvelope)
 
-        let currentPath = SentryCacheGeneration.path(in: mode)
-        XCTAssertNotEqual(currentPath, retiredPath)
+        let current = SentryCacheGeneration.directory(in: mode)
+        XCTAssertNotEqual(current, retired)
         XCTAssertFalse(FileManager.default.fileExists(atPath: lateEnvelope.path))
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: currentPath), [])
-        XCTAssertEqual(SentryCacheGeneration.path(in: mode), currentPath)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: current.path), [])
+        XCTAssertEqual(SentryCacheGeneration.directory(in: mode), current)
     }
 
-    func testPendingCrashCacheSurvivesRelaunchWhenModeIsUnchanged() throws {
+    func testPendingCrashCacheSurvivesRelaunchWhenModeIsUnchanged() async throws {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         let root = try makeTemporaryTestDirectory(prefix: "SentryPendingCrash")
@@ -386,12 +436,15 @@ final class AppCrashReportingTests: XCTestCase {
         )
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
 
-        XCTAssertTrue(FileManager.default.fileExists(atPath: envelope.path))
-        XCTAssertEqual(reporter.starts.last?.configuration.cacheDirectoryURL, crashCache)
+        let activeCache = try XCTUnwrap(reporter.starts.last?.configuration.cacheDirectoryURL)
+        let pendingEnvelope = activeCache.appendingPathComponent(envelope.lastPathComponent)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: pendingEnvelope.path))
+        XCTAssertEqual(activeCache.deletingLastPathComponent(), crashCache)
     }
 
-    func testLegacyCacheIsPurgedWhenModeDirectoriesAreIntroduced() throws {
+    func testLegacyCacheIsPurgedWhenModeDirectoriesAreIntroduced() async throws {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
         defaults.set(false, forKey: AppPrivacyPreference.basicDiagnosticsKey)
@@ -405,17 +458,21 @@ final class AppCrashReportingTests: XCTestCase {
         )
         try Data("legacy".utf8).write(to: legacyEnvelope)
         try Data("current".utf8).write(to: currentEnvelope)
+        let reporter = RecordingCrashReporter()
         let coordinator = AppTelemetryCoordinator(
             defaults: defaults,
             configuration: configuration(cacheRoot: root),
             environment: testEnvironment,
-            reporter: RecordingCrashReporter()
+            reporter: reporter
         )
 
         coordinator.start(initialReport: nil)
+        await coordinator.waitForConsentTransition()
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: legacyEnvelope.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: currentEnvelope.path))
+        let activeCache = try XCTUnwrap(reporter.starts.last?.configuration.cacheDirectoryURL)
+        let pendingEnvelope = activeCache.appendingPathComponent(currentEnvelope.lastPathComponent)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: pendingEnvelope.path))
     }
 
     private func makeCoordinator(
@@ -546,7 +603,7 @@ private final class RecordingCrashReporter: AppTelemetryReporting {
         activities.append(record)
     }
 
-    func stopAndPurge(cacheDirectoryURL: URL) {
+    func stop() {
         stopCount += 1
     }
 }

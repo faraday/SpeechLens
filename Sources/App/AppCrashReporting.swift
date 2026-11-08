@@ -213,12 +213,6 @@ struct TelemetryCapabilities: OptionSet, Sendable, Equatable {
 }
 
 struct TelemetryCapabilityMode: Sendable, Equatable {
-    static let allModes = (1 ... 7).compactMap {
-        TelemetryCapabilityMode(
-            TelemetryCapabilities(rawValue: UInt8($0))
-        )
-    }
-
     init?(_ capabilities: TelemetryCapabilities) {
         guard !capabilities.isEmpty, capabilities.rawValue & ~UInt8(0b111) == 0
         else { return nil }
@@ -248,27 +242,36 @@ protocol AppTelemetryReporting: AnyObject {
     func update(context: CrashOperationContext?)
     func submit(_ record: EnhancementPerformanceRecord)
     func submit(_ record: DailyActivityRecord)
-    func stopAndPurge(cacheDirectoryURL: URL)
+    func stop()
 }
 
 @MainActor
 final class AppTelemetryCoordinator: AppEnhancementPerformanceReporting {
     private static let userIDKey = "telemetry.consentEpochUserID"
     private static let dailyActivityKey = "telemetry.lastDailyActivity"
+    private static let cacheEpochKey = "telemetry.cacheConsentEpoch"
+    private static let retiredCacheEpoch = "revoked"
+
+    private struct CacheTransition: Sendable {
+        let mode: TelemetryCapabilityMode?
+        let epoch: UUID?
+        let preservePending: Bool
+    }
 
     private let defaults: UserDefaults
     private let configuration: CrashReportingConfiguration?
     private let cacheDirectoryURL: URL
     private let environment: CrashEnvironmentContext
     private let reporter: any AppTelemetryReporting
-    private let fileManager: FileManager
     private let now: () -> Date
     private let makeUserID: () -> UUID
     private var observer: NSObjectProtocol?
     private var latestContext: CrashOperationContext?
     private var activeMode: TelemetryCapabilityMode?
     private var activeUserID: String?
-    private var hasAppliedConsent = false
+    private var requestedCapabilities: TelemetryCapabilities?
+    private var pendingTransition: CacheTransition?
+    private var transitionTask: Task<Void, Never>?
 
     init(
         defaults: UserDefaults = .standard,
@@ -277,7 +280,6 @@ final class AppTelemetryCoordinator: AppEnhancementPerformanceReporting {
             .defaultCacheDirectoryURL(),
         environment: DiagnosticEnvironment = .current(),
         reporter: any AppTelemetryReporting,
-        fileManager: FileManager = .default,
         now: @escaping () -> Date = Date.init,
         makeUserID: @escaping () -> UUID = UUID.init
     ) {
@@ -287,7 +289,6 @@ final class AppTelemetryCoordinator: AppEnhancementPerformanceReporting {
             ?? cacheDirectoryURL
         self.environment = CrashEnvironmentContext(environment: environment)
         self.reporter = reporter
-        self.fileManager = fileManager
         self.now = now
         self.makeUserID = makeUserID
     }
@@ -303,8 +304,7 @@ final class AppTelemetryCoordinator: AppEnhancementPerformanceReporting {
                 self?.applyConsent()
             }
         }
-        applyConsent(isInitial: true)
-        recordDailyActivityIfNeeded()
+        applyConsent()
     }
 
     func update(report: DiagnosticReport?) {
@@ -316,18 +316,18 @@ final class AppTelemetryCoordinator: AppEnhancementPerformanceReporting {
     }
 
     func stop() {
-        if let activeMode {
-            reporter.stopAndPurge(
-                cacheDirectoryURL: cacheURL(for: activeMode)
-            )
-        }
-        activeMode = nil
-        activeUserID = nil
-        purgeAllCaches()
         if let observer {
             NotificationCenter.default.removeObserver(observer)
             self.observer = nil
         }
+        retireReporter()
+        requestedCapabilities = nil
+        defaults.set(Self.retiredCacheEpoch, forKey: Self.cacheEpochKey)
+        enqueue(CacheTransition(mode: nil, epoch: nil, preservePending: false))
+    }
+
+    func waitForConsentTransition() async {
+        await transitionTask?.value
     }
 
     func submit(_ record: EnhancementPerformanceRecord) {
@@ -396,97 +396,113 @@ final class AppTelemetryCoordinator: AppEnhancementPerformanceReporting {
         return capabilities
     }
 
-    private func applyConsent(isInitial: Bool = false) {
-        let requestedMode = TelemetryCapabilityMode(authorizedCapabilities)
-        guard let configuration, let requestedMode else {
-            if let activeMode {
-                reporter.stopAndPurge(
-                    cacheDirectoryURL: cacheURL(for: activeMode)
-                )
-            } else if !hasAppliedConsent {
-                reporter.stopAndPurge(cacheDirectoryURL: cacheDirectoryURL)
-                purgeAllCaches()
-            }
-            activeMode = nil
-            activeUserID = nil
-            purgeAllCaches()
-            if authorizedCapabilities.isEmpty {
-                if defaults.object(forKey: Self.userIDKey) != nil {
-                    defaults.removeObject(forKey: Self.userIDKey)
-                }
-                if defaults.object(forKey: Self.dailyActivityKey) != nil {
-                    defaults.removeObject(forKey: Self.dailyActivityKey)
-                }
-            }
-            hasAppliedConsent = true
-            return
+    private func applyConsent() {
+        let capabilities = authorizedCapabilities
+        guard requestedCapabilities != capabilities else { return }
+        let isInitial = requestedCapabilities == nil
+        requestedCapabilities = capabilities
+        // Shut off the old route and native crash capture before queuing disk work.
+        retireReporter()
+
+        // Record cache authorization before cleanup so a relaunch during a
+        // transition cannot reopen the retired client's directory.
+        let savedEpoch = defaults.string(forKey: Self.cacheEpochKey)
+        var epoch = savedEpoch.flatMap(UUID.init(uuidString:))
+        let preservePending = isInitial && (savedEpoch == nil || epoch != nil)
+        if capabilities.isEmpty {
+            defaults.removeObject(forKey: Self.userIDKey)
+            defaults.removeObject(forKey: Self.dailyActivityKey)
+            defaults.set(Self.retiredCacheEpoch, forKey: Self.cacheEpochKey)
+        } else if !preservePending {
+            let newEpoch = UUID()
+            epoch = newEpoch
+            defaults.set(newEpoch.uuidString, forKey: Self.cacheEpochKey)
         }
 
-        if isInitial {
-            purgeLegacyCacheContents()
-            purgeCaches(except: requestedMode)
+        enqueue(CacheTransition(
+            mode: configuration == nil ? nil : TelemetryCapabilityMode(capabilities),
+            epoch: epoch,
+            preservePending: preservePending
+        ))
+    }
+
+    private func retireReporter() {
+        guard activeMode != nil else { return }
+        activeMode = nil
+        activeUserID = nil
+        reporter.stop()
+    }
+
+    private func enqueue(_ transition: CacheTransition) {
+        pendingTransition = transition
+        guard transitionTask == nil else { return }
+        transitionTask = Task { [weak self] in
+            await self?.applyPendingTransitions()
         }
+    }
+
+    private func applyPendingTransitions() async {
+        while let transition = pendingTransition {
+            pendingTransition = nil
+            let directory = cacheDirectoryURL
+            let cacheDirectory = await Task.detached(priority: .utility) {
+                Self.prepareCache(transition, in: directory)
+            }.value
+            // A newer preference can arrive while the worker is on disk.
+            guard pendingTransition == nil,
+                  let configuration,
+                  let mode = transition.mode,
+                  let cacheDirectory
+            else { continue }
+            startReporter(configuration: configuration, mode: mode, cacheDirectory: cacheDirectory)
+        }
+        transitionTask = nil
+    }
+
+    private func startReporter(
+        configuration: CrashReportingConfiguration,
+        mode: TelemetryCapabilityMode,
+        cacheDirectory: URL
+    ) {
         let userID = existingOrNewUserID()
-        guard activeMode != requestedMode else { return }
-        if let retiredMode = activeMode {
-            reporter.stopAndPurge(
-                cacheDirectoryURL: cacheURL(for: retiredMode)
-            )
-            // A capability change starts from an empty current-mode cache too,
-            // preventing historical replay across policy identities.
-            try? fileManager.removeItem(at: cacheURL(for: requestedMode))
-        }
-        let modeConfiguration = CrashReportingConfiguration(
+        let clientConfiguration = CrashReportingConfiguration(
             dsn: configuration.dsn,
             environment: configuration.environment,
             releaseName: configuration.releaseName,
             distribution: configuration.distribution,
-            cacheDirectoryURL: cacheURL(for: requestedMode)
+            cacheDirectoryURL: cacheDirectory
         )
         reporter.start(
-            configuration: modeConfiguration,
+            configuration: clientConfiguration,
             environment: environment,
             context: latestContext,
-            capabilities: requestedMode.capabilities,
+            capabilities: mode.capabilities,
             userID: userID
         )
-        activeMode = requestedMode
+        activeMode = mode
         activeUserID = userID
-        hasAppliedConsent = true
         recordDailyActivityIfNeeded()
     }
 
-    private func cacheURL(for mode: TelemetryCapabilityMode) -> URL {
-        cacheDirectoryURL.appendingPathComponent(
-            mode.cacheDirectoryName,
-            isDirectory: true
-        )
-    }
-
-    private func purgeCaches(except retainedMode: TelemetryCapabilityMode) {
-        for mode in TelemetryCapabilityMode.allModes where mode != retainedMode {
-            try? fileManager.removeItem(at: cacheURL(for: mode))
-        }
-    }
-
-    private func purgeAllCaches() {
-        for mode in TelemetryCapabilityMode.allModes {
-            try? fileManager.removeItem(at: cacheURL(for: mode))
-        }
-        purgeLegacyCacheContents()
-    }
-
-    private func purgeLegacyCacheContents() {
-        guard let contents = try? fileManager.contentsOfDirectory(
-            at: cacheDirectoryURL,
+    nonisolated private static func prepareCache(
+        _ transition: CacheTransition,
+        in root: URL
+    ) -> URL? {
+        let fileManager = FileManager.default
+        let modeName = transition.mode?.cacheDirectoryName
+        let retainedName = transition.preservePending ? modeName : nil
+        let contents = (try? fileManager.contentsOfDirectory(
+            at: root,
             includingPropertiesForKeys: nil
-        ) else { return }
-        let modeNames = Set(
-            TelemetryCapabilityMode.allModes.map(\.cacheDirectoryName)
-        )
-        for url in contents where !modeNames.contains(url.lastPathComponent) {
+        )) ?? []
+        for url in contents where url.lastPathComponent != retainedName {
             try? fileManager.removeItem(at: url)
         }
+        guard let modeName else { return nil }
+        return SentryCacheGeneration.directory(
+            in: root.appendingPathComponent(modeName, isDirectory: true),
+            consentEpoch: transition.epoch
+        )
     }
 
     private func existingOrNewUserID() -> String {
