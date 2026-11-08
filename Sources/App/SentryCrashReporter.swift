@@ -8,7 +8,7 @@ final class SentryCrashReporter: AppTelemetryReporting {
     private var consentGate = TelemetryConsentGate()
     private var isStarted = false
     private let makeURLSession: @MainActor () -> URLSession
-    private var activeURLSession: URLSession?
+    private var activeTransport: SentryConsentTransport?
 
     init(
         makeURLSession: @escaping @MainActor () -> URLSession = {
@@ -33,12 +33,15 @@ final class SentryCrashReporter: AppTelemetryReporting {
         let gate = TelemetryConsentGate()
         gate.setCapabilities(capabilities)
         consentGate = gate
-        let transportSession = makeURLSession()
-        activeURLSession = transportSession
+        let transport = SentryConsentTransport(networkSession: makeURLSession())
+        activeTransport = transport
+        let transportSession = transport.sdkSession
+        let cachePath = SentryCacheGeneration.path(in: configuration.cacheDirectoryURL)
         SentrySDK.start { options in
             Self.configure(
                 options,
                 configuration: configuration,
+                cachePath: cachePath,
                 consentGate: gate,
                 urlSession: transportSession,
                 capabilities: capabilities,
@@ -140,11 +143,10 @@ final class SentryCrashReporter: AppTelemetryReporting {
 
     func stopAndPurge(cacheDirectoryURL: URL) {
         consentGate.setCapabilities([])
-        // SentrySDK.close() always attempts a flush, even with a zero timeout.
-        // Invalidate our owned transport first so cached envelopes cannot be
-        // sent by that flush or by a superseded client after re-enabling.
-        activeURLSession?.invalidateAndCancel()
-        activeURLSession = nil
+        // Close the network route before Sentry's asynchronous shutdown flush.
+        // The SDK-facing session can still create tasks, which fail locally.
+        activeTransport?.revoke()
+        activeTransport = nil
         if isStarted {
             SentrySDK.configureScope { scope in
                 scope.clear()
@@ -159,6 +161,7 @@ final class SentryCrashReporter: AppTelemetryReporting {
     nonisolated private static func configure(
         _ options: Options,
         configuration: CrashReportingConfiguration,
+        cachePath: String,
         consentGate: TelemetryConsentGate,
         urlSession: URLSession?,
         capabilities: TelemetryCapabilities,
@@ -168,7 +171,7 @@ final class SentryCrashReporter: AppTelemetryReporting {
         options.environment = configuration.environment
         options.releaseName = configuration.releaseName
         options.dist = configuration.distribution
-        options.cacheDirectoryPath = configuration.cacheDirectoryURL.path
+        options.cacheDirectoryPath = cachePath
         options.urlSession = urlSession
         options.maxCacheItems = 5
         options.shutdownTimeInterval = 0
@@ -478,5 +481,45 @@ private final class TelemetryConsentGate: @unchecked Sendable {
 
     func setCapabilities(_ capabilities: TelemetryCapabilities) {
         lock.withLock { value = capabilities }
+    }
+}
+
+enum SentryCacheGeneration {
+    private static let markerName = "active-client"
+    private static let directoryPrefix = "client-"
+
+    static func path(in modeDirectory: URL) -> String {
+        let files = FileManager.default
+        let marker = modeDirectory.appendingPathComponent(markerName)
+        let savedID = try? String(contentsOf: marker, encoding: .utf8)
+        let activeID = savedID.flatMap(UUID.init(uuidString:))
+        let id = activeID ?? UUID()
+        let activeDirectory = modeDirectory.appendingPathComponent(directoryPrefix + id.uuidString)
+        let contents = (try? files.contentsOfDirectory(
+            at: modeDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+
+        if activeID == nil {
+            try? files.createDirectory(at: activeDirectory, withIntermediateDirectories: true)
+            // Preserve the existing cache when upgrading from a mode directory
+            // that held SDK files directly. Retired clients only use UUID paths.
+            for item in contents where item.lastPathComponent != markerName
+                && !item.lastPathComponent.hasPrefix(directoryPrefix) {
+                try? files.moveItem(
+                    at: item,
+                    to: activeDirectory.appendingPathComponent(item.lastPathComponent)
+                )
+            }
+            try? id.uuidString.write(to: marker, atomically: true, encoding: .utf8)
+        }
+
+        // A retired SDK worker may still touch its old directory after close().
+        // It can never write into the new SDK client's cache.
+        for item in contents where item.lastPathComponent.hasPrefix(directoryPrefix)
+            && item.lastPathComponent != activeDirectory.lastPathComponent {
+            try? files.removeItem(at: item)
+        }
+        return activeDirectory.path
     }
 }

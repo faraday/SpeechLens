@@ -308,6 +308,63 @@ final class AppCrashReportingTests: XCTestCase {
         notify(defaults)
     }
 
+    func testRetiredTransportRejectsLateTasksAfterReenable() async throws {
+        NetworkSpyURLProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [NetworkSpyURLProtocol.self]
+        let retired = SentryConsentTransport(networkSession: URLSession(configuration: configuration))
+        retired.revoke()
+        let current = SentryConsentTransport(networkSession: URLSession(configuration: configuration))
+        defer { current.revoke() }
+
+        var request = URLRequest(url: try XCTUnwrap(URL(string: "https://example.invalid/envelope/")))
+        request.httpMethod = "POST"
+        request.httpBody = Data("envelope".utf8)
+
+        do {
+            _ = try await retired.sdkSession.data(for: request)
+            XCTFail("The retired transport accepted a late request")
+        } catch let error as URLError {
+            XCTAssertEqual(error.code, .cancelled)
+        }
+        XCTAssertEqual(NetworkSpyURLProtocol.requestCount, 0)
+
+        let (data, response) = try await current.sdkSession.data(for: request)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(data, request.httpBody)
+        XCTAssertEqual(NetworkSpyURLProtocol.requestCount, 1)
+        XCTAssertEqual(NetworkSpyURLProtocol.lastRequest?.httpMethod, request.httpMethod)
+        XCTAssertEqual(NetworkSpyURLProtocol.lastRequest?.url, request.url)
+        XCTAssertNil(NetworkSpyURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-SpeechLens-Local-Sentry-Route"))
+    }
+
+    func testLateCacheWritesCannotRejoinCurrentClientAfterRevocation() throws {
+        let mode = try makeTemporaryTestDirectory(prefix: "SentryCacheGeneration")
+            .appendingPathComponent("crash", isDirectory: true)
+        try FileManager.default.createDirectory(at: mode, withIntermediateDirectories: true)
+        let legacyEnvelope = mode.appendingPathComponent("existing-envelope")
+        try Data("pending".utf8).write(to: legacyEnvelope)
+
+        let retiredPath = SentryCacheGeneration.path(in: mode)
+        let retired = URL(fileURLWithPath: retiredPath, isDirectory: true)
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: retired.appendingPathComponent(legacyEnvelope.lastPathComponent).path
+        ))
+        XCTAssertEqual(SentryCacheGeneration.path(in: mode), retiredPath)
+
+        SentryCrashReporter().stopAndPurge(cacheDirectoryURL: mode)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mode.path))
+        try FileManager.default.createDirectory(at: retired, withIntermediateDirectories: true)
+        let lateEnvelope = retired.appendingPathComponent("late-envelope")
+        try Data("retired".utf8).write(to: lateEnvelope)
+
+        let currentPath = SentryCacheGeneration.path(in: mode)
+        XCTAssertNotEqual(currentPath, retiredPath)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: lateEnvelope.path))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: currentPath), [])
+        XCTAssertEqual(SentryCacheGeneration.path(in: mode), currentPath)
+    }
+
     func testPendingCrashCacheSurvivesRelaunchWhenModeIsUnchanged() throws {
         let defaults = makeDefaults()
         acceptOnboarding(reliability: true, defaults: defaults)
@@ -497,13 +554,21 @@ private final class RecordingCrashReporter: AppTelemetryReporting {
 private final class NetworkSpyURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var count = 0
+    nonisolated(unsafe) private static var requestSeen: URLRequest?
 
     static var requestCount: Int {
         lock.withLock { count }
     }
 
+    static var lastRequest: URLRequest? {
+        lock.withLock { requestSeen }
+    }
+
     static func reset() {
-        lock.withLock { count = 0 }
+        lock.withLock {
+            count = 0
+            requestSeen = nil
+        }
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -512,7 +577,17 @@ private final class NetworkSpyURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     override func startLoading() {
-        Self.lock.withLock { Self.count += 1 }
+        Self.lock.withLock {
+            Self.count += 1
+            Self.requestSeen = request
+        }
+        if let url = request.url, url.host == "example.invalid",
+           let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) {
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: requestBody())
+            client?.urlProtocolDidFinishLoading(self)
+            return
+        }
         client?.urlProtocol(
             self,
             didFailWithError: URLError(.notConnectedToInternet)
@@ -520,4 +595,16 @@ private final class NetworkSpyURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+
+    private func requestBody() -> Data {
+        guard let stream = request.httpBodyStream else { return request.httpBody ?? Data() }
+        stream.open()
+        defer { stream.close() }
+        var body = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while case let count = stream.read(&buffer, maxLength: buffer.count), count > 0 {
+            body.append(contentsOf: buffer.prefix(count))
+        }
+        return body
+    }
 }
